@@ -6,7 +6,7 @@ class MyBase(DeclarativeBase):
 
 class User(MyBase):
     __tablename__ = 'users'
-    user_id: Mapped[int] = mapped_column(BigInteger, unique=True,primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, unique=True, primary_key=True)
     balance: Mapped[int] = mapped_column(BigInteger, default=0)
     name: Mapped[str] = mapped_column(String(150))
     surname: Mapped[str] = mapped_column(String(150))
@@ -29,6 +29,8 @@ class Event(MyBase):
     event_date: Mapped[date] = mapped_column(Date)
     limit: Mapped[int]=mapped_column(BigInteger,nullable=True)
     required_age: Mapped[int]=mapped_column(Integer,nullable=True)
+    city: Mapped[str] = mapped_column(String(200))
+    creator_id: Mapped[str] = mapped_column(BigInteger)
     associations: Mapped[list["Association"]] = relationship(
         back_populates="event",
         cascade="all, delete-orphan",

@@ -41,7 +41,8 @@ async def get_admins(message: types.Message,bot: Bot):
         await message.delete()
     for admin_id in bot.my_admins_list:
         await bot.set_my_commands(commands=admin_command_list,scope=types.BotCommandScopeChat(chat_id=admin_id))
-    await bot.send_message(chat_id=message.from_user.id,text="права получены",reply_markup=admin_reply_keyboard)
+    if message.from_user.id in bot.my_admins_list:
+        await bot.send_message(chat_id=message.from_user.id,text="Права получены",reply_markup=admin_reply_keyboard)
 
 @daily_notifier
 async def message_sender():

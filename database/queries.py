@@ -8,8 +8,13 @@ async def orm_count_users(session: AsyncSession,event_id: int):
     result=await session.scalar(stmt)
     return result
 #events related queries
-async def orm_read_events(session: AsyncSession):
+async def orm_read_events_user(session: AsyncSession):
     stmt=select(Event).where(Event.event_date >= date.today()).order_by(Event.event_date.desc())
+    scar_result=await session.scalars(stmt)
+    return scar_result.all()
+
+async def orm_read_events_admin(session: AsyncSession, admin_id: int):
+    stmt=select(Event).where(Event.event_date >= date.today(),Event.creator_id==admin_id).order_by(Event.event_date.desc())
     scar_result=await session.scalars(stmt)
     return scar_result.all()
 
@@ -19,9 +24,20 @@ async def orm_read_tommorow_events(session: AsyncSession):
     result = await session.scalars(stmt)
     return result.all()
             
+async def orm_read_search_events(session: AsyncSession,data: dict):
+    conditions = []
+    for field, value in data.items():
+        column= getattr(Event, field)
+        if value == "gay":
+            conditions.append(column == None)
+        elif value is not None:
+            conditions.append(column == value)
+    stmt=select(Event).where(*conditions).order_by(Event.event_date.desc())
+    scar_result=await session.scalars(stmt)
+    return scar_result.all()
 
-async def orm_read_past_events(session: AsyncSession):
-    stmt=select(Event).where(Event.event_date <= date.today(),Event.state==True).order_by(Event.event_date.desc())
+async def orm_read_past_events_admin(session: AsyncSession, admin_id: int):
+    stmt=select(Event).where(Event.event_date <= date.today(),Event.state==True,Event.creator_id==admin_id).order_by(Event.event_date.desc())
     scar_result=await session.scalars(stmt)
     return scar_result.all()
 
@@ -46,9 +62,11 @@ async def orm_add_event(session: AsyncSession,data: dict[str]):
         name=data["event_name"],
         point=data["event_point"],
         description=data["event_description"],
+        city=data["event_city"],
         event_date=data["event_date"],
         limit=data["event_limit"],
-        required_age=data["event_age"]
+        required_age=data["event_age"],
+        creator_id=data["creator_id"]
         )
     session.add(obj)
     await session.commit()
@@ -67,6 +85,7 @@ async def orm_update_event(session: AsyncSession,data: dict[str]):
         name = data["event_name"],
         point=data["event_point"],
         description=data["event_description"],
+        city=data["event_city"],
         event_date=data["event_date"],
         limit=data["event_limit"],
         required_age=data["event_age"]
@@ -85,6 +104,8 @@ async def orm_read_event(session: AsyncSession,event_id: int):
     stmt=select(Event).where(Event.id == event_id)
     return await session.scalar(stmt)
 
+async def orm_search_events(session: AsyncSession,params: dict):
+    pass
 #users related queries
 async def orm_read_user(session: AsyncSession,user_id: int):
     stmt=select(User).where(User.user_id == user_id)
@@ -103,7 +124,7 @@ async def orm_add_user(session: AsyncSession,data: dict[str]):
     await session.commit()
 
 async def orm_update_user(session: AsyncSession,data: dict[str]):
-    stmt=update(User).where(Event.id==data["user_id"]).values(
+    stmt=update(User).where(User.user_id==data["user_id"]).values(
         name=data["user_name"],
         surname=data["user_surname"],
         fathers_name=data["user_fname"],
