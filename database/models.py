@@ -31,6 +31,7 @@ class Event(MyBase):
     required_age: Mapped[int]=mapped_column(Integer,nullable=True)
     city: Mapped[str] = mapped_column(String(200))
     creator_id: Mapped[str] = mapped_column(BigInteger)
+    album: Mapped[str] = mapped_column(Text,nullable=True)
     associations: Mapped[list["Association"]] = relationship(
         back_populates="event",
         cascade="all, delete-orphan",

@@ -66,7 +66,8 @@ async def orm_add_event(session: AsyncSession,data: dict[str]):
         event_date=data["event_date"],
         limit=data["event_limit"],
         required_age=data["event_age"],
-        creator_id=data["creator_id"]
+        creator_id=data["creator_id"],
+        album=data["event_media"]
         )
     session.add(obj)
     await session.commit()
@@ -88,7 +89,8 @@ async def orm_update_event(session: AsyncSession,data: dict[str]):
         city=data["event_city"],
         event_date=data["event_date"],
         limit=data["event_limit"],
-        required_age=data["event_age"]
+        required_age=data["event_age"],
+        album=data["event_media"]
         )
     await session.execute(stmt)
     await session.commit()
@@ -104,8 +106,6 @@ async def orm_read_event(session: AsyncSession,event_id: int):
     stmt=select(Event).where(Event.id == event_id)
     return await session.scalar(stmt)
 
-async def orm_search_events(session: AsyncSession,params: dict):
-    pass
 #users related queries
 async def orm_read_user(session: AsyncSession,user_id: int):
     stmt=select(User).where(User.user_id == user_id)

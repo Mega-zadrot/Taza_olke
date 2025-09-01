@@ -8,7 +8,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 #modules
 from custom_filters.router_filters import TypeCheck,IsAdmin
 from kbds.inline import get_inline_keyboard
-from kbds.reply import admin_reply_keyboard,update_fsm_keyboard,fsm_keyboard,yes_no_kb,fsm_keyboard_age_limit,update_fsm_keyboard_age_limit
+from kbds.reply import (
+    admin_reply_keyboard,
+    update_fsm_keyboard,
+    fsm_keyboard,
+    yes_no_kb,
+    fsm_keyboard_age_limit,
+    update_fsm_keyboard_age_limit,
+    fsm_keyboard_media,
+    update_fsm_keyboard_media
+)
 from database.queries import (
 orm_read_events_admin,
 orm_add_event,
@@ -27,6 +36,7 @@ orm_read_event_point
 )
 from utils.render import render_event,render_user
 from utils.bonus import parse_price_for_postgres
+from media.album import send_event
 
 admin_private_router=Router()
 
@@ -37,6 +47,7 @@ class EventValue(StatesGroup):
     event_name=State()
     event_point=State()
     event_description=State()
+    event_media=State()
     event_date=State()
     event_age=State()
     event_limit=State()
@@ -49,7 +60,8 @@ class EventValue(StatesGroup):
         "EventValue:event_date":"Введите дату в формате yyyy-mm-dd",
         "EventValue:event_limit":"Введите число желаемых участников",
         "EventValue:event_age":"Введите минимальный возраст",
-        "EventValue:event_city":"Введите город в котором запланирована акция"
+        "EventValue:event_city":"Введите город в котором запланирована акция",
+        "EventValue:event_media":"Отправьте видео и фото"
         }
     
     list_of_states=[
@@ -60,6 +72,7 @@ class EventValue(StatesGroup):
         event_date,
         event_age,
         event_limit,
+        event_media,
         are_you_sure
     ]
 
@@ -78,8 +91,12 @@ async def read_events(message: types.Message,session: AsyncSession):
     else:
         for event in events:
             user_num=await orm_count_users(session,event.id)
+            await send_event(
+                message=message,
+                user_num=user_num,
+                event=event)
             await message.answer(
-                render_event(event,user_num),
+                f"Действия с {event.name}",
                 reply_markup=get_inline_keyboard(
                     data={"Удалить❌":f"edelete_{event.id}",
                           "Изменить🔁":f"eupdate_{event.id}",
@@ -98,8 +115,12 @@ async def read_past_events(message: types.Message,session: AsyncSession):
     else:
         for event in events:
             user_num=await orm_count_users(session,event.id)
+            await send_event(
+                message=message,
+                user_num=user_num,
+                event=event)
             await message.answer(
-                render_event(event,user_num),
+                f"Действия с {event.name}",
                 reply_markup=get_inline_keyboard(
                     data={
                           "Список для подтверждения":f"list_{event.id}"
@@ -127,7 +148,7 @@ async def update_event(callback: types.CallbackQuery,session: AsyncSession,state
         await callback.answer()
         await callback.message.answer("Введите новое название события",reply_markup=update_fsm_keyboard)
         await state.set_state(EventValue.event_name)
-        await state.update_data(id=event_id)
+        await state.update_data(id=event_id, event_media=None, count=0)
     else:
         await callback.message.answer("Событие было удалено")
 
@@ -205,10 +226,10 @@ async def confirm_presence(callback: types.CallbackQuery,session: AsyncSession):
 @admin_private_router.message(StateFilter(None),F.text.casefold()=="создать событие")
 async def create_event(message: types.Message,state: FSMContext):
     await message.answer(
-        "Введите имя события(не больше 200 символов(на имя) и отвечайте только текстом на все в противном случае бот не будет вам отвечать)",
+        "Введите имя события(не больше 100 символов(на имя) и отвечайте только текстом на все в противном случае бот не будет вам отвечать)",
         reply_markup=fsm_keyboard)
     await state.set_state(EventValue.event_name)
-    await state.update_data(creator_id=message.from_user.id)
+    await state.update_data(creator_id=message.from_user.id, event_media=None, count=0)
     
 #cancel fsm
 @admin_private_router.message(StateFilter(*EventValue.list_of_states),F.text.casefold()=="отмена")
@@ -241,6 +262,14 @@ async def admin_step_backwards(message: types.Message,state: FSMContext):
         await state.set_state(EventValue.event_age)
         await message.answer(f"Ок вы вернулись на шаг назад \n{EventValue.texts["EventValue:event_age"]}",reply_markup=fsm_keyboard_age_limit)
         return
+    elif current_state == EventValue.event_city and event_for_change is not None:
+        await state.set_state(EventValue.event_media)
+        await message.answer(f"Ок вы вернулись на шаг назад \n{EventValue.texts["EventValue:event_media"]}",reply_markup=update_fsm_keyboard_media)
+        return
+    elif current_state == EventValue.event_city:
+        await state.set_state(EventValue.event_media)
+        await message.answer(f"Ок вы вернулись на шаг назад \n{EventValue.texts["EventValue:event_media"]}",reply_markup=fsm_keyboard_media)
+        return
     elif event_for_change is not None:
         previous=None
         for step in EventValue.__all_states__:
@@ -268,12 +297,12 @@ async def name_event(message: types.Message,state: FSMContext):
         await message.answer("Ок оставляем это имя, теперь отправьте новое количество баллов за это событие",reply_markup=update_fsm_keyboard)
         await state.set_state(EventValue.event_point)
     else:   
-        if len(message.text) <= 200:
+        if len(message.text) <= 100:
             await state.update_data(event_name=message.text)
             await message.answer("Теперь отправьте количество баллов за это событие")
             await state.set_state(EventValue.event_point)
         else:
-            await message.answer("Имя превысило 200 символов, повторите на этот раз с меньшим количеством")
+            await message.answer("Имя превысило 100 символов, повторите на этот раз с меньшим количеством")
 
 @admin_private_router.message(EventValue.event_point,F.text)
 async def point_event(message: types.Message,state: FSMContext):
@@ -298,16 +327,52 @@ async def desc_event(message: types.Message,state: FSMContext):
     event_for_change=data.get("event_for_change")
     if message.text.casefold()=="пропустить" and event_for_change is not None:
         await state.update_data(event_description=event_for_change.description)
-        await message.answer("Ок оставляем это описание, теперь отправьте другое местоположение",reply_markup=update_fsm_keyboard)
+        await message.answer("Ок оставляем это описание, теперь отправьте другие фото и видео до 10 штук",reply_markup=update_fsm_keyboard_media)
+        await state.set_state(EventValue.event_media)
+    else:
+        if len(message.text) <= 700:
+            await state.update_data(event_description=message.text)
+            await message.answer("Теперь отправьте фото и видео до 10 штук",reply_markup=fsm_keyboard_media)
+            await state.set_state(EventValue.event_media)
+        else:
+            await message.answer("Описание превысило 700 символов, повторите на этот раз с меньшим количеством")  
+# 4 routes of behaviour: concatenate until 10 th object, finish before 10th(even on None), save current done       
+@admin_private_router.message(EventValue.event_media,F.video)        
+@admin_private_router.message(EventValue.event_media,F.photo)
+async def get_media(message: types.Message,state: FSMContext):
+    data=await state.get_data()
+    media=data.get("event_media")
+    count=data.get("count")
+    if count == 10:
+        await message.answer(f"Добавлено {count} из 10")
+        await message.answer("Теперь отправьте местоположение (город) события",reply_markup=fsm_keyboard)
         await state.set_state(EventValue.event_city)
     else:
-        if len(message.text) <= 2500:
-            await state.update_data(event_description=message.text)
-            await message.answer("Теперь отправьте местоположение (город) события")
-            await state.set_state(EventValue.event_city)
+        if media is None:
+            media=""
+        if message.photo:
+            media+=f"photo:{message.photo[-1].file_id},"
         else:
-            await message.answer("Описание превысило 2500 символов, повторите на этот раз с меньшим количеством")  
-        
+            media+=f"video:{message.video.file_id},"
+        count += 1
+        await state.update_data(event_media=media,count=count)
+        await message.answer(f"Добавлено {count} из 10")
+    
+@admin_private_router.message(EventValue.event_media,F.text)
+async def get_media2(message: types.Message,state: FSMContext):
+    data=await state.get_data()
+    event_for_change=data.get("event_for_change")
+    if message.text.casefold()=="пропустить" and event_for_change is not None:
+        await state.update_data(event_media=event_for_change.album)
+        await message.answer("Ок оставляем эти фото и видео, теперь отправьте другое местоположение",reply_markup=update_fsm_keyboard)
+        await state.set_state(EventValue.event_city)
+    elif message.text.casefold()=="завершить" and event_for_change is not None:
+        await message.answer("Теперь отправьте местоположение (город) события",reply_markup=update_fsm_keyboard)
+        await state.set_state(EventValue.event_city)
+    elif message.text.casefold()=="завершить":
+        await message.answer("Теперь отправьте местоположение (город) события",reply_markup=fsm_keyboard)
+        await state.set_state(EventValue.event_city)
+
 @admin_private_router.message(EventValue.event_city,F.text)
 async def event_location(message: types.Message,state: FSMContext):
     data=await state.get_data()
@@ -317,12 +382,12 @@ async def event_location(message: types.Message,state: FSMContext):
         await message.answer("Ок оставляем это местоположение, теперь отправьте новую дату",reply_markup=update_fsm_keyboard)
         await state.set_state(EventValue.event_date)
     else:
-        if len(message.text) <= 200:
+        if len(message.text) <= 100:
             await state.update_data(event_city=message.text.capitalize())
             await message.answer("Теперь отправьте дату в таком формате yyyy-mm-dd")
             await state.set_state(EventValue.event_date)
         else:
-            await message.answer("Название города превысило 200 символов, повторите на этот раз с меньшим количеством")
+            await message.answer("Название города превысило 100 символов, повторите на этот раз с меньшим количеством")
 
 @admin_private_router.message(EventValue.event_date,F.text)
 async def date_event(message: types.Message,state: FSMContext):
@@ -401,13 +466,13 @@ async def limit_event(message: types.Message,state: FSMContext,session: AsyncSes
             await state.update_data(event_limit=event_for_change.limit)
             await message.answer("Ок оставляем этот лимит")
             data = await state.get_data()
-            await message.answer(render_event(data))
+            await send_event(message=message,event=data)
             await message.answer("Вы довольны?",reply_markup=yes_no_kb)
             await state.set_state(EventValue.are_you_sure)
         elif message.text.casefold()=="без ограничения":
                 await state.update_data(event_limit=None)
                 data = await state.get_data()
-                await message.answer(render_event(data))
+                await send_event(message=message,event=data)
                 await message.answer("Вы довольны?",reply_markup=yes_no_kb)
                 await state.set_state(EventValue.are_you_sure)
         elif event_for_change is not None:
@@ -420,7 +485,7 @@ async def limit_event(message: types.Message,state: FSMContext,session: AsyncSes
             else:
                 await state.update_data(event_limit=number_of_limit)
                 data = await state.get_data()
-                await message.answer(render_event(data))
+                await send_event(message=message,event=data)
                 await message.answer("Вы довольны?",reply_markup=yes_no_kb)
                 await state.set_state(EventValue.are_you_sure)
         else:
@@ -430,7 +495,7 @@ async def limit_event(message: types.Message,state: FSMContext,session: AsyncSes
             else:
                 await state.update_data(event_limit=number_of_limit)
                 data = await state.get_data()
-                await message.answer(render_event(data))
+                await send_event(message=message,event=data)
                 await message.answer("Вы довольны?",reply_markup=yes_no_kb)
                 await state.set_state(EventValue.are_you_sure)
     except ValueError:

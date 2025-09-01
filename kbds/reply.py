@@ -15,7 +15,11 @@ update_fsm_keyboard=get_reply_keyboard("Шаг назад","Отмена","Пр�
 
 fsm_keyboard_age_limit=get_reply_keyboard("Шаг назад","Отмена","Без ограничения")
 
+fsm_keyboard_media=get_reply_keyboard("Шаг назад","Отмена","Завершить")
+
 update_fsm_keyboard_age_limit=get_reply_keyboard("Шаг назад","Отмена","Без ограничения","Пропустить")
+
+update_fsm_keyboard_media=get_reply_keyboard("Шаг назад","Отмена","Завершить","Пропустить")
 
 contact_markup=ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="Поделиться номером",request_contact=True)],[KeyboardButton(text="Шаг назад")],[KeyboardButton(text="Отмена")]],resize_keyboard=True)
 

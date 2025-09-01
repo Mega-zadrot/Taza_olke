@@ -59,7 +59,7 @@ def render_user(user: dict | User) -> str:
     else:
         return f"У вас нет зарегистрированого аккаунта"
     
-def render_my_event(event: Event,state: bool | None):
+def render_my_event(event: Event, state: bool | None):
     state_str = "Активна" if event.state else "Отменена"
     age_str = str(event.required_age) if event.required_age is not None else "Не ограничено"
     date_str = event.event_date.strftime("%Y-%m-%d")

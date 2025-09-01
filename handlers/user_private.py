@@ -41,6 +41,7 @@ from kbds.inline import get_inline_keyboard
 from utils.render import render_user,render_event,render_my_event
 from utils.time import calculate_age
 from utils.bonus import parse_price_for_postgres
+from media.album import send_event
 
 user_private_router=Router()
 user_private_router.message.filter(TypeCheck(["private"]))
@@ -88,8 +89,9 @@ async def events_cmd(message: types.Message,session: AsyncSession):
     else:
         for event in events:
             user_num=await orm_count_users(session,event.id)
+            await send_event(message=message,user_num=user_num,event=event)
             await message.answer(
-                render_event(event,user_num),
+                f"Действия с {event.name}",
                 reply_markup=get_inline_keyboard(
                     data={"Зарегистрироваться✅":f"register_{event.id}"}))
         await message.answer("Вот список событий")
@@ -158,7 +160,7 @@ async def my_past_events_cmd(message: types.Message,session: AsyncSession):
         await message.answer("Здесь нет ничего")
     else:
         for event, was_there in rows:
-            await message.answer(render_my_event(event,was_there))
+            await send_event(event=event,state=was_there,message=message)
 
 #my future events
 @user_private_router.message(StateFilter(None),Command("my_future_events"))
@@ -169,7 +171,9 @@ async def my_future_events_cmd(message: types.Message,session: AsyncSession):
         await message.answer("Здесь нет ничего")
     else:
         for event, was_there in rows:
-            await message.answer(render_my_event(event,was_there),
+            await send_event(message=message,event=event,state=was_there)
+            await message.answer(
+                f"Действия с {event.name}",
                 reply_markup=get_inline_keyboard(
                     data={"Отозвать❌":f"deregister_{event.id}"}))
 
@@ -484,7 +488,7 @@ async def search_date(message: types.Message,state: FSMContext,session: AsyncSes
                         render_event(event,user_num),
                         reply_markup=get_inline_keyboard(
                             data={"Зарегистрироваться✅":f"register_{event.id}"}))
-                await message.answer("Вот список событий")
+                await message.answer("Вот список событий",reply_markup=ReplyKeyboardRemove())
             await state.clear()
         else:
             number_of_points = parse_price_for_postgres(message.text)
