@@ -25,7 +25,7 @@ dp.include_router(admin_private_router)
 dp.include_router(user_private_router)
 
 async def on_startup(bot):
-#    await create_db()
+    await create_db()
     print("run")
     await bot.set_my_commands(commands=user_command_list,scope=types.BotCommandScopeAllPrivateChats())
 #    await drop_db()
