@@ -25,15 +25,15 @@ dp.include_router(admin_private_router)
 dp.include_router(user_private_router)
 
 async def on_startup(bot):
-    await create_db()
+#    await create_db()
     print("run")
     await bot.set_my_commands(commands=user_command_list,scope=types.BotCommandScopeAllPrivateChats())
-#    await drop_db()
+    await drop_db()
 
 dp.startup.register(on_startup)
 dp.update.middleware(DataBaseSession(session_pool=session_maker))
 #PRAVA POLUCHAEM
-@dp.message(Command("admin"),TypeCheck(['supergroup']))
+@dp.message(Command("admin"),TypeCheck(['group']))
 async def get_admins(message: types.Message,bot: Bot):
     admins_list=await bot.get_chat_administrators(message.chat.id)
     bot.my_admins_list=[member.user.id for member in admins_list if member.status == "creator" or member.status=="administrator"]
@@ -42,7 +42,7 @@ async def get_admins(message: types.Message,bot: Bot):
     for admin_id in bot.my_admins_list:
         await bot.set_my_commands(commands=admin_command_list,scope=types.BotCommandScopeChat(chat_id=admin_id))
     if message.from_user.id in bot.my_admins_list:
-        await bot.send_message(chat_id=message.from_user.id,text="Права получены",reply_markup=admin_reply_keyboard)
+        await bot.send_message(chat_id=message.from_user.id,text="Права получены введите /admin ",reply_markup=admin_reply_keyboard)
 
 @daily_notifier
 async def message_sender():
@@ -57,7 +57,7 @@ async def message_sender():
                     continue
                 else:
                     for user in users:
-                        await bot.send_message(chat_id=user.user_id,text=f"у вас завтра запись на {event.name.lower()}")
+                        await bot.send_message(chat_id=user.user_id,text=f"У вас завтра запись на {event.name.lower()}")
 
 async def main():
     asyncio.create_task(message_sender())

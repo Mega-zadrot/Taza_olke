@@ -1,4 +1,4 @@
-from database.models import Event,User
+from database.models import Event,User,Request,Report
 from .time import calculate_age
 from datetime import datetime
 from decimal import Decimal
@@ -40,12 +40,14 @@ def render_user(user: dict | User) -> str:
         age_str = calculate_age(user.birth_date)
         date_str = user.birth_date.strftime("%Y-%m-%d") 
         users_balance = Decimal(user.balance) / Decimal("100")
+        username=f"@{user.username}" if user.username is not None else "Нет username"
         return (
             f"{user.name} {user.surname} {user.fathers_name}\n"
             f"📅 Дата рождения: {date_str}\n"
             f"🕑 Возраст на сегодня: {age_str}\n"
             f"📞 Номер телефона: {user.phone_number}\n"
-            f"💸 Баланс: {users_balance}"
+            f"💸 Баланс: {users_balance}\n"
+            f"{username}"
         )
     elif isinstance(user, dict):
         age_str = calculate_age(user["user_date"])
@@ -80,3 +82,53 @@ def render_my_event(event: Event, state: bool | None):
         f"🔞 Мин. возраст: {age_str}\n"
         f"👤 {was_or_not}"
     )
+
+def render_request(request: Request | dict[str,datetime]) -> str:
+    if isinstance(request,Request):
+        date_str = request.created_at.strftime("%Y-%m-%d %H:%M")
+        username=f"@{request.username}" if request.username is not None else "Нет username"
+        return (
+            f"📌 {request.name}\n"
+            f"📝 {request.description}\n"
+            f"🚩 Адрес: {request.address}\n"
+            f"📅 Дата и время создания: {date_str}\n"
+            f"👤 Создатель: {username}\n"
+            f"📞 Номер телефона: {request.phone_number}\n"
+            f"📢 Статус заявки: {request.status.capitalize()}"
+        )
+    elif isinstance(request, dict):
+        date_str = request["request_date"].strftime("%Y-%m-%d %H:%M") 
+        username=f"@{request["username"]}" if request["username"] is not None else "Нет username"
+        return (
+            f"📌 {request["request_name"]}\n"
+            f"📝 {request["request_description"]}\n"
+            f"🚩 Адрес: {request["request_address"]}\n"
+            f"📅 Дата и время создания: {date_str}\n"
+            f"👤 Создатель: {username}\n"
+            f"📞 Номер телефона: {request["phone_number"]}\n"
+            f"📢 Статус заявки: В ожидании"
+        )
+
+def render_report(report: Report | dict) -> str:
+    if isinstance(report,Report):
+        date_str = report.created_at.strftime("%Y-%m-%d %H:%M")
+        username=f"@{report.username}" if report.username is not None else "Нет username"
+        return (
+            f"📌 {report.name}\n"
+            f"📝 {report.description}\n"
+            f"🚩 Адрес: {report.address}\n"
+            f"📅 Дата и время создания: {date_str}\n"
+            f"👤 Создатель: {username}\n"
+            f"📞 Номер телефона: {report.phone_number}\n"
+        )
+    elif isinstance(report, dict):
+        date_str = report["report_date"].strftime("%Y-%m-%d %H:%M") 
+        username=f"@{report["username"]}" if report["username"] is not None else "Нет username"
+        return (
+            f"📌 {report["report_name"]}\n"
+            f"📝 {report["report_description"]}\n"
+            f"🚩 Адрес: {report["report_address"]}\n"
+            f"📅 Дата и время создания: {date_str}\n"
+            f"👤 Создатель: {username}\n"
+            f"📞 Номер телефона: {report["phone_number"]}\n"
+        )
